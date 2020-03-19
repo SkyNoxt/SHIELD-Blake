@@ -5,13 +5,13 @@
 #define USB_VENDOR_ID_NVIDIA 0x0955
 #define USB_DEVICE_ID_NVIDIA_BLAKE 0x7210
 
-#define TOUCH_REPORT_ID 2
+#define TP_REPORT_ID 2
 
-#define TOUCHPAD_DEFAULT_X 128
-#define TOUCHPAD_DEFAULT_Y 128
+#define TP_DEFAULT_X 128
+#define TP_DEFAULT_Y 128
 
-#define TOUCHPAD_SPEED_X 1
-#define TOUCHPAD_SPEED_Y 1
+#define TP_SPEED_X 1
+#define TP_SPEED_Y 1
 
 struct blake_tp
 {
@@ -27,7 +27,7 @@ static int blake_raw_event(struct hid_device* hdev, struct hid_report* report, u
 	u8 x, y;
 	s16 *dx, *dy;
 
-	if (report->id != TOUCH_REPORT_ID)
+	if (report->id != TP_REPORT_ID)
 		return 0;
 
 	x = data[2];
@@ -40,8 +40,8 @@ static int blake_raw_event(struct hid_device* hdev, struct hid_report* report, u
 	{
 		if (tp->action)
 		{
-			s16 sqrX = ((s16)x - (s16)tp->x) * TOUCHPAD_SPEED_X;
-			s16 sqrY = ((s16)y - (s16)tp->y) * TOUCHPAD_SPEED_Y;
+			s16 sqrX = ((s16)x - (s16)tp->x) * TP_SPEED_X;
+			s16 sqrY = ((s16)y - (s16)tp->y) * TP_SPEED_Y;
 
 			*dx = (sqrX > 0 ? sqrX : -sqrX) * sqrX;
 			*dy = (sqrY > 0 ? sqrY : -sqrY) * sqrY;
@@ -74,8 +74,8 @@ static int blake_probe(struct hid_device* hdev, const struct hid_device_id* id)
 	if (!tp)
 		return -ENOMEM;
 
-	tp->x = TOUCHPAD_DEFAULT_X;
-	tp->y = TOUCHPAD_DEFAULT_Y;
+	tp->x = TP_DEFAULT_X;
+	tp->y = TP_DEFAULT_Y;
 	tp->action = 0;
 
 	hid_set_drvdata(hdev, tp);
