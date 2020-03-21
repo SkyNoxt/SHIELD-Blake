@@ -84,6 +84,7 @@ static int blake_init_ff(struct hid_device* device)
 	struct hid_input* input = list_entry(device->inputs.next, struct hid_input, list);
 
 	set_bit(FF_RUMBLE, input->input->ffbit);
+	set_bit(FF_CONSTANT, input->input->ffbit);
 	input_ff_create_memless(input->input, NULL, blake_ff_play);
 
 	return 0;
