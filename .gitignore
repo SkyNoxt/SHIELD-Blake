@@ -3,5 +3,5 @@
 
 !.gitignore
 !Makefile
-!hid-blake.c
+!SHIELD-Blake.c
 !README.md

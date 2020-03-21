@@ -1,5 +1,5 @@
 
-obj-m += hid-blake.o
+obj-m += SHIELD-Blake.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

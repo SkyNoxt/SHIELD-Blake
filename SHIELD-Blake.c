@@ -20,9 +20,9 @@ struct blake_tp
 	u8 action;
 };
 
-static int blake_raw_event(struct hid_device* hdev, struct hid_report* report, u8* data, int size)
+static int blake_raw_event(struct hid_device* device, struct hid_report* report, u8* data, int size)
 {
-	struct blake_tp* tp = (struct blake_tp*)hid_get_drvdata(hdev);
+	struct blake_tp* tp = (struct blake_tp*)hid_get_drvdata(device);
 
 	u8 x, y;
 	s16 *dx, *dy;
@@ -67,63 +67,61 @@ static int blake_raw_event(struct hid_device* hdev, struct hid_report* report, u
 
 static int blake_ff_play(struct input_dev* dev, void* data, struct ff_effect* effect)
 {
-	struct hid_device* hid = input_get_drvdata(dev);
-	struct hid_report* report = list_entry(hid->report_enum[HID_OUTPUT_REPORT].report_list.next, struct hid_report, list);
+	struct hid_device* device = input_get_drvdata(dev);
+	struct hid_report* report = list_entry(device->report_enum[HID_OUTPUT_REPORT].report_list.next, struct hid_report, list);
 
 	report->field[0]->value[0] = effect->u.rumble.strong_magnitude;
 	report->field[0]->value[1] = effect->u.rumble.weak_magnitude;
 	report->field[0]->value[2] = effect->replay.length;
 
-	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	hid_hw_request(device, report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
 
-static int blake_init_ff(struct hid_device* hid)
+static int blake_init_ff(struct hid_device* device)
 {
-	struct hid_input* hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+	struct hid_input* input = list_entry(device->inputs.next, struct hid_input, list);
 
-	set_bit(FF_RUMBLE, hidinput->input->ffbit);
-	input_ff_create_memless(hidinput->input, NULL, blake_ff_play);
+	set_bit(FF_RUMBLE, input->input->ffbit);
+	input_ff_create_memless(input->input, NULL, blake_ff_play);
 
 	return 0;
 }
 
-static int blake_probe(struct hid_device* hdev, const struct hid_device_id* id)
+static int blake_probe(struct hid_device* device, const struct hid_device_id* device_id)
 {
-	struct blake_tp* tp;
-
-	tp = devm_kzalloc(&hdev->dev, sizeof(struct blake_tp), GFP_KERNEL);
+	struct blake_tp* tp = devm_kzalloc(&device->dev, sizeof(struct blake_tp), GFP_KERNEL);
 
 	tp->x = TP_DEFAULT_X;
 	tp->y = TP_DEFAULT_Y;
 	tp->action = 0;
 
-	hid_set_drvdata(hdev, tp);
+	hid_set_drvdata(device, tp);
 
-	hid_parse(hdev);
-	hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	blake_init_ff(hdev);
+	hid_parse(device);
+	hid_hw_start(device, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	blake_init_ff(device);
 
-	kobject_uevent(&hdev->dev.kobj, KOBJ_CHANGE);
+	kobject_uevent(&device->dev.kobj, KOBJ_CHANGE);
 
 	return 0;
 }
 
-static void blake_remove(struct hid_device* hdev)
+static void blake_remove(struct hid_device* device)
 {
-	hid_hw_stop(hdev);
+	hid_hw_stop(device);
 }
 
-static const struct hid_device_id blake_devices[] = {
+static const struct hid_device_id blake_device[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NVIDIA, USB_DEVICE_ID_NVIDIA_BLAKE) },
 	{}
 };
-MODULE_DEVICE_TABLE(hid, blake_devices);
+MODULE_DEVICE_TABLE(hid, blake_device);
 
 static struct hid_driver blake_driver = {
-	.name = "hid-blake",
-	.id_table = blake_devices,
+	.name = "SHIELD-Blake",
+	.id_table = blake_device,
 	.probe = blake_probe,
 	.raw_event = blake_raw_event,
 	.remove = blake_remove,
