@@ -65,14 +65,35 @@ static int blake_raw_event(struct hid_device* hdev, struct hid_report* report, u
 	return 0;
 }
 
+static int blake_ff_play(struct input_dev* dev, void* data, struct ff_effect* effect)
+{
+	struct hid_device* hid = input_get_drvdata(dev);
+	struct hid_report* report = list_entry(hid->report_enum[HID_OUTPUT_REPORT].report_list.next, struct hid_report, list);
+
+	report->field[0]->value[0] = effect->u.rumble.strong_magnitude;
+	report->field[0]->value[1] = effect->u.rumble.weak_magnitude;
+	report->field[0]->value[2] = effect->replay.length;
+
+	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+
+	return 0;
+}
+
+static int blake_init_ff(struct hid_device* hid)
+{
+	struct hid_input* hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+
+	set_bit(FF_RUMBLE, hidinput->input->ffbit);
+	input_ff_create_memless(hidinput->input, NULL, blake_ff_play);
+
+	return 0;
+}
+
 static int blake_probe(struct hid_device* hdev, const struct hid_device_id* id)
 {
-	int result;
 	struct blake_tp* tp;
 
 	tp = devm_kzalloc(&hdev->dev, sizeof(struct blake_tp), GFP_KERNEL);
-	if (!tp)
-		return -ENOMEM;
 
 	tp->x = TP_DEFAULT_X;
 	tp->y = TP_DEFAULT_Y;
@@ -80,13 +101,9 @@ static int blake_probe(struct hid_device* hdev, const struct hid_device_id* id)
 
 	hid_set_drvdata(hdev, tp);
 
-	result = hid_parse(hdev);
-	if (result)
-		return result;
-
-	result = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (result)
-		return result;
+	hid_parse(hdev);
+	hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	blake_init_ff(hdev);
 
 	kobject_uevent(&hdev->dev.kobj, KOBJ_CHANGE);
 
