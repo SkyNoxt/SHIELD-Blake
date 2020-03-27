@@ -13,7 +13,7 @@
 #define TP_SPEED_X 1
 #define TP_SPEED_Y 1
 
-struct blake_tp
+struct blake_state
 {
 	u8 x;
 	u8 y;
@@ -22,7 +22,7 @@ struct blake_tp
 
 static int blake_raw_event(struct hid_device* device, struct hid_report* report, u8* data, int size)
 {
-	struct blake_tp* tp = (struct blake_tp*)hid_get_drvdata(device);
+	struct blake_state* state = (struct blake_state*)hid_get_drvdata(device);
 
 	u8 x, y;
 	s16 *dx, *dy;
@@ -38,26 +38,26 @@ static int blake_raw_event(struct hid_device* device, struct hid_report* report,
 
 	if (data[1] & 0x08)
 	{
-		if (tp->action)
+		if (state->action)
 		{
-			s16 sqrX = ((s16)x - (s16)tp->x) * TP_SPEED_X;
-			s16 sqrY = ((s16)y - (s16)tp->y) * TP_SPEED_Y;
+			s16 sqrX = ((s16)x - (s16)state->x) * TP_SPEED_X;
+			s16 sqrY = ((s16)y - (s16)state->y) * TP_SPEED_Y;
 
 			*dx = (sqrX > 0 ? sqrX : -sqrX) * sqrX;
 			*dy = (sqrY > 0 ? sqrY : -sqrY) * sqrY;
 		}
 		else
 		{
-			tp->action = 1;
+			state->action = 1;
 			*dx = 0;
 			*dy = 0;
 		}
-		tp->x = x;
-		tp->y = y;
+		state->x = x;
+		state->y = y;
 	}
 	else
 	{
-		tp->action = 0;
+		state->action = 0;
 		*dx = 0;
 		*dy = 0;
 	}
@@ -65,44 +65,53 @@ static int blake_raw_event(struct hid_device* device, struct hid_report* report,
 	return 0;
 }
 
-static int blake_ff_play(struct input_dev* dev, void* data, struct ff_effect* effect)
+static int blake_upload(struct input_dev* dev, struct ff_effect* effect, struct ff_effect* old)
+{
+	return 0;
+}
+
+static int blake_playback(struct input_dev* dev, int index, int value)
 {
 	struct hid_device* device = input_get_drvdata(dev);
 	struct hid_report* report = list_entry(device->report_enum[HID_OUTPUT_REPORT].report_list.next, struct hid_report, list);
 
-	report->field[0]->value[0] = effect->u.rumble.strong_magnitude;
-	report->field[0]->value[1] = effect->u.rumble.weak_magnitude;
-	report->field[0]->value[2] = effect->replay.length;
+	struct ff_effect* effect = dev->ff->effects + index;
+	int* data = report->field[0]->value;
+
+	if (value)
+	{
+		data[0] = effect->u.rumble.strong_magnitude;
+		data[1] = effect->u.rumble.weak_magnitude;
+		data[2] = effect->replay.length;
+	}
+	else
+		data[0] = data[1] = data[2] = 0;
 
 	hid_hw_request(device, report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
 
-static int blake_init_ff(struct hid_device* device)
-{
-	struct hid_input* input = list_entry(device->inputs.next, struct hid_input, list);
-
-	set_bit(FF_RUMBLE, input->input->ffbit);
-	set_bit(FF_CONSTANT, input->input->ffbit);
-	input_ff_create_memless(input->input, NULL, blake_ff_play);
-
-	return 0;
-}
-
 static int blake_probe(struct hid_device* device, const struct hid_device_id* device_id)
 {
-	struct blake_tp* tp = devm_kzalloc(&device->dev, sizeof(struct blake_tp), GFP_KERNEL);
+	struct blake_state* state = devm_kzalloc(&device->dev, sizeof(struct blake_state), GFP_KERNEL);
+	struct hid_input* input;
 
-	tp->x = TP_DEFAULT_X;
-	tp->y = TP_DEFAULT_Y;
-	tp->action = 0;
+	state->x = TP_DEFAULT_X;
+	state->y = TP_DEFAULT_Y;
 
-	hid_set_drvdata(device, tp);
+	hid_set_drvdata(device, state);
 
 	hid_parse(device);
-	hid_hw_start(device, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	blake_init_ff(device);
+	hid_hw_start(device, HID_CONNECT_DEFAULT);
+
+	input = list_entry(device->inputs.next, struct hid_input, list);
+
+	set_bit(FF_RUMBLE, input->input->ffbit);
+	input_ff_create(input->input, 0x10);
+
+	input->input->ff->playback = blake_playback;
+	input->input->ff->upload = blake_upload;
 
 	kobject_uevent(&device->dev.kobj, KOBJ_CHANGE);
 
