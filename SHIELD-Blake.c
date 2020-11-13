@@ -138,5 +138,5 @@ static struct hid_driver blake_driver = {
 };
 module_hid_driver(blake_driver);
 
-MODULE_AUTHOR("Artem Pyx <artempyx@gmail.com>");
+MODULE_AUTHOR("Sky Noxt <skynoxt@gmail.com>");
 MODULE_LICENSE("GPL");
